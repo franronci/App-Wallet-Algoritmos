@@ -1,333 +1,278 @@
-﻿using System.Net.Sockets;
+﻿namespace clase_21;
 
-namespace clase_20;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 class Program
-
 {
-
     static void Main(string[] args)
-
     {
-
-        AppWallet app = new AppWallet();
-
+        AppCaracteristicas app = new AppCaracteristicas();
         app.Ejecutar();
-
     }
-
 }
 
-class AppWallet 
+class AppCaracteristicas
 {
 
     private Validador validador;
+    private List<Pedido> pedidos;
+    private List<Concepto> conceptos;
 
-    private List<Movimiento> movimientos;
-
-    public AppWallet()
+    public AppCaracteristicas()
     {
-
         validador = new Validador();
-
-        movimientos = new List<Movimiento>();
-
+        pedidos = new List<Pedido>();
     }
 
     public void Ejecutar()
     {
-
-        string continuar = "";
-
-        double saldoFinal = 0;
-
+        string opcion = "";
         do
         {
-
-        } while (continuar.Equals("S"));
-
-        foreach (Movimiento movimiento in movimientos)
-        {
-
-            Console.WriteLine(movimiento);
-
-            saldoFinal = saldoFinal + movimiento.getImporteConSigno();
-
-        }
-
-        Console.WriteLine("El saldo es: " + saldoFinal);
-        Console.ReadKey();
+            opcion = validador.pedirStringNoVacio("Ingrese opcion:\n1. Nuevo pedido\n2. Ver pedidos\n3. Salir");
+            if (opcion == "1")
+            {
+                cargarPedido();
+            }
+            else if (opcion == "2")
+            {
+                listarPedidos();
+            }
+        } while (opcion != "3");
     }
 
+    private void cargarPedido()
+    {
+        string patente = validador.pedirStringNoVacio("Ingrese patente del vehiculo");
+        if (pedidos.Contains(new Pedido(patente, "", "")))
+        {
+            Console.WriteLine("Patente ya ingresada");
+        }
+        else
+        {
+            Pedido pedidoAgregar = new Pedido(patente,
+                        validador.pedirStringNoVacio("Ingrese modelo"),
+                        validador.pedirStringNoVacio("Ingrese nombre y apellido"));
+            while (!pedidoAgregar.esCompleto())
+            {
+                if (!pedidoAgregar.intentarAgregarItem(validador.pedirItemDePedido(conceptos)))
+                {
+                    Console.WriteLine("El pedido ya tiene definida la caracteristica");
+                }
+            }
+            pedidos.Add(pedidoAgregar);
+        }
+    }
+
+    private void listarPedidos()
+    {
+        Console.WriteLine("Patente\tModelo\tNombre y apellido\tImporte");
+        foreach (Pedido pedido in pedidos)
+        {
+            Console.WriteLine(pedido.ToString());
+        }
+    }
 }
+
 
 class Validador
 {
 
-    string pedirStringNoVacio(string mensaje)
-
+    public string pedirStringNoVacio(string mensaje)
     {
-
         string retorno = "";
-
         do
         {
-
             Console.WriteLine(mensaje);
-
             retorno = Console.ReadLine();
-
             if (retorno == "")
             {
-
                 Console.WriteLine("Debe ingresar un dato");
-
             }
-
         } while (retorno == "");
-
         return (retorno);
-
     }
 
-    double pedirDouble(string mensaje, double minimo, double maximo)
-
+    public int pedirInteger(string mensaje, int minimo, int maximo)
     {
-
-        double retorno = minimo - 1;
-
+        int retorno = minimo - 1;
         do
         {
-
             Console.WriteLine(mensaje);
-
-            if (!Double.TryParse(Console.ReadLine(), out retorno))
+            if (!Int32.TryParse(Console.ReadLine(), out retorno))
             {
-
                 Console.WriteLine("Debe ingresar un numero");
-
             }
             else
             {
-
                 if (retorno < minimo && retorno > maximo)
                 {
-
                     Console.WriteLine("Fuera de rango");
-
                 }
-
             }
-
         } while (retorno < minimo && retorno > maximo);
-
         return (retorno);
-
     }
-
 }
 
-abstract class Movimiento
-
+class Pedido
 {
 
-    private string fecha;
+    private string patente;
+    private string modelo;
+    private string nombreYApellido;
+    private List<Item> items;
 
-    private string signo;
-
-    private double importe;
-
-    public Movimiento(string signo, double importe)
+    public Pedido(string patente, string modelo, string nombreYApellido)
     {
-
-        fecha = DateTime.Now.ToString();
-
-        this.signo = signo;
-
-        this.importe = importe;
-
+        this.patente = patente;
+        this.modelo = modelo;
+        this.nombreYApellido = nombreYApellido;
+        items = new List<Item>();
     }
 
-    public double getImporteConSigno()
+    public overried bool Equals(Object obj)
     {
+        bool retorno = false;
+        if (obj != null && obj is Pedido)
+        {
+            Pedido pedido = obj as Pedido;
+            if (pedido.patente == this.patente)
+            {
+                retorno = true;
+            }
+        }
+        return (retorno);
+    }
 
-        return (importe * (signo.Equals("D") ? 1 : -1));
-
+    public double importe()
+    {
+        double retorno = 0;
+        foreach (Item item in items)
+        {
+            retorno = retorno + item.getImporte();
+        }
+        return (retorno);
     }
 
     public override String ToString()
     {
-
-        return (this.fecha + "\t" + this.signo + "\t" + this.importe);
-
+        return (patente + "\t" + modelo + "\t" + nombreYApellido + "\t" + importe());
     }
 
-}
-
-abstract class MovimientoDeTerceros : Movimiento
-{
-
-    private string nombreProveedor;
-
-    private string ticket;
-
-    public MovimientoDeTerceros(string signo, double importe, string nombreProveedor, string ticket) :
-
-        base(signo, importe)
+    public bool esCompleto()
     {
-
-        this.nombreProveedor = nombreProveedor;
-
-        this.ticket = ticket;
-
+        return (items.Count == 4);
     }
 
-    public override bool Equals(object? obj)
+    public bool intentarAgregarItem(Item itemAgregar)
     {
-
-        bool retval = false;
-
-        if (obj != null && obj is MovimientoDeTerceros)
+        bool existe = false;
+        bool agregado = false;
+        foreach (Item item in items)
         {
-
-            MovimientoDeTerceros mov = obj as MovimientoDeTerceros;
-
-            if (mov.nombreProveedor == this.nombreProveedor && mov.ticket == this.ticket)
+            //OPCION FRANCISCO
+            if (item.GetType() == itemAgregar.GetType())
             {
-
-                retval = true;
-
+                existe = true;
             }
-
         }
-
-        return (retval);
-
-    }
-
-    public override string ToString()
-    {
-
-        return (base.ToString() + "\t" + nombreProveedor + "\t" + ticket);
-
-    }
-
-}
-
-class Pago : MovimientoDeTerceros
-{
-
-    public Pago(double importe, string nombreProveedor, string ticket)
-
-    : base("H", importe, nombreProveedor, ticket)
-    {
-
-        //No ponemos nada    
-
-    }
-
-    public override bool Equals(object? obj)
-    {
-
-        return (obj != null && obj is Pago && base.Equals(obj));
-
-    }
-
-}
-
- class Reembolso : MovimientoDeTerceros
-{
-
-    public Reembolso(double importe, string nombreProveedor, string ticket)
-
-    : base("D", importe, nombreProveedor, ticket)
-    {
-
-        //No ponemos nada    
-
-    }
-
-    public override bool Equals(object? obj)
-    {
-
-        return (obj != null && obj is Pago && base.Equals(obj));
-
-    }
-
-}
-
-abstract class MovimientosPropios : Movimiento
-{
-    string CBU;
-    string NumeroCuentaPropia;
-
-    public MovimientosPropios(string CBU, string NumeroCuentaPropia, string signo, double importe): base(signo, importe)
-    {
-        this.CBU = CBU;
-        this.NumeroCuentaPropia = NumeroCuentaPropia;
-       
-    }
-
-    public override bool Equals(object? obj)
-    {
-
-        bool retval = false;
-
-        if (obj != null && obj is MovimientosPropios)
+        if (!existe)
         {
-            MovimientosPropios mov = obj as MovimientosPropios;
-
-            if (mov.CBU == this.CBU)
-            {
-
-                retval = true;
-
-            }
-
+            items.Add(itemAgregar);
+            agregado = true;
         }
-        return (retval);
+        return (agregado);
+    }
+
+}
+
+
+class Item
+{
+
+    
+
+    public Item (Concepto var)
+    {
+    
+        
+    
+    
+    }
+
+
+
+    public double getImporte()
+    {
+        return 
+
 
     }
 
-    public override string ToString()
-    {
 
-        return (base.ToString() + "\t" + CBU + "\t" + NumeroCuentaPropia);
+
+
+}​
+
+
+
+abstract class Concepto
+{
+    private string codigo;
+    private string nombre;
+    private double precio;
+
+    public Concepto (string codigo, string nombre, double precio)
+    {
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.precio = precio;
+
+    }
+
+    public double getPrecio()
+    {
+        return precio;
 
     }
 
 }
 
-class Acreditacion : MovimientosPropios
+class Caja: Concepto
 {
-
-    public Acreditacion (string signo, double importe, string CBU, string NumeroCuentaPropia) : base ("D", NumeroCuentaPropia, CBU, importe)
-    {
-        //No se hace nada
-    }
-
-    public override bool Equals(object? obj)
+    public Caja (string codigo, string nombre, double precio): base (codigo, nombre, precio)
     {
 
-        return (obj != null && obj is Acreditacion && base.Equals(obj));
-
     }
+
 
 }
-
-class Retiro : MovimientosPropios
+class Vidrio : Concepto
 {
-
-    public Retiro(string signo, double importe, string CBU, string NumeroCuentaPropia) : base("H", NumeroCuentaPropia, CBU, importe)
-    {
-        //No se hace nada
-    }
-
-    public override bool Equals(object? obj)
+    public Vidrio (string codigo, string nombre, double precio) : base(codigo, nombre, precio)
     {
 
-        return (obj != null && obj is Retiro && base.Equals(obj));
+    }
+
+
+}
+class Puerta : Concepto
+{
+    public Puerta(string codigo, string nombre, double precio) : base(codigo, nombre, precio)
+    {
 
     }
+
+
+}
+class Llanta : Concepto
+{
+    public Llanta(string codigo, string nombre, double precio) : base(codigo, nombre, precio)
+    {
+
+    }
+
 
 }
